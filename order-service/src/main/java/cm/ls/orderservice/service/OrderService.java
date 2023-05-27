@@ -3,6 +3,7 @@ package cm.ls.orderservice.service;
 import cm.ls.orderservice.dto.InventoryResponse;
 import cm.ls.orderservice.dto.OrderLineItemDto;
 import cm.ls.orderservice.dto.OrderRequest;
+import cm.ls.orderservice.dto.OrderResponse;
 import cm.ls.orderservice.model.Order;
 import cm.ls.orderservice.model.OrderLineItems;
 import cm.ls.orderservice.repository.OrderRepository;
@@ -11,6 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -21,7 +23,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient webClient;
 
-    public void placeOrder(OrderRequest orderRequest) {
+    public Order placeOrder(OrderRequest orderRequest) {
 
         List<OrderLineItems> orderLineItemsList = orderRequest.getOrderLineItemDtoList()
                 .stream()
@@ -58,6 +60,7 @@ public class OrderService {
         }
 
         orderRepository.save(order);
+        return order;
     }
 
     private OrderLineItems mapToLineItem(OrderLineItemDto orderLineItem) {
@@ -68,4 +71,31 @@ public class OrderService {
                 .build();
     }
 
+    public OrderResponse findOrder(String orderNum) {
+        Optional<Order> optionalOrder = orderRepository.findByOrderNumber(orderNum);
+        if (!optionalOrder.isPresent()) {
+            throw new IllegalArgumentException("The order number is not found !");
+        }
+
+        return orderToOrderResponse(optionalOrder.get());
+
+    }
+
+    private OrderResponse orderToOrderResponse(Order order) {
+        return OrderResponse.builder()
+                .orderNumber(order.getOrderNumber())
+                .orderLineItemDtoList(order.getOrderLineItemsList().stream()
+                        .map(this::mapToOrderLineItemsDto)
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
+    private OrderLineItemDto mapToOrderLineItemsDto (OrderLineItems orderLineItems) {
+        return OrderLineItemDto.builder()
+                .id(orderLineItems.getId())
+                .qte(orderLineItems.getQte())
+                .prix(orderLineItems.getPrix())
+                .skuCode(orderLineItems.getSkuCode())
+                .build();
+    }
 }
